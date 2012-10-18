@@ -16,7 +16,7 @@
 ]).
 
 %% Max Body of 10MB by default
--define(MAX_RECV_BODY,(1024*1024*10)).
+-define(MAX_RECV_BODY,(1024*1024*100)).
 
 %% {Req, DocRoot} is deprecated
 %% Maintained for backwards compatibility.
@@ -118,7 +118,7 @@ request_body(Req) ->
 	MaxBody = case application:get_env(mochiweb,max_request_size) of
 		undefined -> 
 			?MAX_RECV_BODY;
-		Max when is_integer(Max) -> 
+		{ok, Max} when is_integer(Max) -> 
 			Max;
 		Other -> 
 			error_logger:warning_msg("Mochiweb Simple Bridge Configuration Error!  Unknown value for 'mochiweb' application variable 'max_request_size': ~p. Expected: integer() or undefined. Using Default of ~p~n",[Other,?MAX_RECV_BODY]),
