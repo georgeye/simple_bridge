@@ -9,7 +9,7 @@
 
 -export ([
     init/1,
-    request_method/1, path/1, uri/1,
+    protocol/1, request_method/1, path/1, uri/1,
     peer_ip/1, peer_port/1,
     headers/1, cookies/1,
     query_params/1, post_params/1, request_body/1,
@@ -32,6 +32,8 @@ init({Req,DocRoot}) ->
     ?PUT,
     ReqKey.
 
+protocol(_ReqKey) -> undefined.
+
 request_method(ReqKey) ->
     ?GET,
     {Method, Req} = cowboy_http_req:method(Req),
@@ -47,7 +49,10 @@ path(ReqKey) ->
 
 uri(ReqKey) ->
     ?GET,
-    {RawPath, Req} = cowboy_http_req:raw_path(Req),
+    {RawPath, Req} = case cowboy_http_req:raw_path(Req) of
+     undefined -> {undefined, ok};
+     {P, R} -> {P, R}
+     end,
     b2l(RawPath).
 
 peer_ip(ReqKey) ->
@@ -59,7 +64,7 @@ peer_ip(ReqKey) ->
 
 peer_port(ReqKey) ->
     ?GET,
-    {{_IP, Port}, NewReq} = cowboy_http_req:peer(Req),
+    {Port, NewReq} = cowboy_http_req:port(Req),
     NewRequestCache = _RequestCache#request_cache{request=NewReq},
     ?PUT,
     Port.
@@ -153,14 +158,4 @@ b2l(B) when is_binary(B) ->
     binary_to_list(B);
 b2l(B) ->
     B.
-
-l2b(L) when is_list(L) ->
-    list_to_binary(L);
-l2b(L) ->
-    L.
-
-b2a(B) when is_binary(B) ->
-    list_to_atom(binary_to_list(B)).
-
-
 
