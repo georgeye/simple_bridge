@@ -8,7 +8,7 @@
 -include_lib ("simple_bridge.hrl").
 -export ([
     init/1,
-    request_method/1, path/1, uri/1,
+    protocol/1, request_method/1, path/1, uri/1,
     peer_ip/1, peer_port/1,
     headers/1, header/2, cookies/1,
     query_params/1, post_params/1, request_body/1,
@@ -20,10 +20,16 @@
 
 %% {Req, DocRoot} is deprecated
 %% Maintained for backwards compatibility.
-init({Req, _DocRoot}) -> 
-	init(Req);
+%% In Mochiweb 2.4.1, Req is a two-tuple, and this was parsing out just the
+%% first element of the tuple.  This ensures that only if it's an old-style
+%% {req, docroot} tuple will this clause match.
+init({Req, _DocRoot}) when Req =/= mochiweb_request -> 
+    init(Req);
 init(Req) -> 
     Req.
+
+protocol(Req) ->
+    Req:get(scheme).
 
 request_method(Req) -> 
     Req:get(method).
@@ -91,6 +97,8 @@ header(x_forwarded_for, Req) ->
     Req:get_header_value("x-forwarded-for");
 header(transfer_encoding, Req) ->
     Req:get_header_value("transfer-encoding");
+header(accept_encoding, Req) ->
+    Req:get_header_value("accept-encoding");
 header(Header, Req) ->
     Req:get_header_value(Header).
 
@@ -100,7 +108,8 @@ headers(Req) ->
         if_none_match, if_unmodified_since, if_range, range, 
         referer, user_agent, accept_language, accept_ranges, 
         cookie, keep_alive, location, content_length, content_type,
-        content_encoding, authorization, x_forwarded_for, transfer_encoding
+        content_encoding, authorization, x_forwarded_for, transfer_encoding,
+        accept_encoding
     ],
     Headers1 = lists:map(fun(H) -> {H, header(H, Req)} end, Headers),
     [{K, V} || {K, V} <- Headers1, V /= undefined].
@@ -115,15 +124,15 @@ post_params(Req) ->
     Req:parse_post().
 
 request_body(Req) ->
-	MaxBody = case application:get_env(mochiweb,max_request_size) of
-		undefined -> 
-			?MAX_RECV_BODY;
-		{ok, Max} when is_integer(Max) -> 
-			Max;
-		Other -> 
-			error_logger:warning_msg("Mochiweb Simple Bridge Configuration Error!  Unknown value for 'mochiweb' application variable 'max_request_size': ~p. Expected: integer() or undefined. Using Default of ~p~n",[Other,?MAX_RECV_BODY]),
-			?MAX_RECV_BODY
-	end,
+    MaxBody = case application:get_env(mochiweb,max_request_size) of
+        undefined -> 
+            ?MAX_RECV_BODY;
+        {ok, Max} when is_integer(Max) -> 
+            Max;
+        Other -> 
+            error_logger:warning_msg("Mochiweb Simple Bridge Configuration Error!  Unknown value for 'mochiweb' application variable 'max_request_size': ~p. Expected: integer() or undefined. Using Default of ~p~n",[Other,?MAX_RECV_BODY]),
+            ?MAX_RECV_BODY
+    end,
     Req:recv_body(MaxBody).
 
 socket(Req) -> 	
